@@ -1,0 +1,270 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return signedIn() && request.auth.token.get('admin', false) == true;
+    }
+
+    function validEmail(value) {
+      return value is string && value.size() <= 254 && value.matches('^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$');
+    }
+
+    function orderPath(orderId) {
+      return /databases/$(database)/documents/orders/$(orderId);
+    }
+
+    function validOrderItem(item) {
+      let fields = item is map ? item : {};
+      let productId = fields.get('productId', null);
+      let productIdLength = productId is string ? productId.size() : -1;
+      let name = fields.get('name', null);
+      let nameLength = name is string ? name.size() : -1;
+      let quantity = fields.get('quantity', null);
+      let unitPrice = fields.get('unitPrice', null);
+      let lineTotal = fields.get('lineTotal', null);
+
+      return item is map
+        && item.keys().hasOnly(['productId', 'name', 'quantity', 'unitPrice', 'lineTotal'])
+        && item.size() == 5
+        && productId is string
+        && productIdLength > 0
+        && productIdLength <= 128
+        && name is string
+        && nameLength > 0
+        && nameLength <= 120
+        && quantity is int
+        && quantity >= 1
+        && quantity <= 20
+        && unitPrice is number
+        && unitPrice >= 0
+        && unitPrice <= 100000000
+        && lineTotal is number
+        && lineTotal >= 0
+        && lineTotal <= 100000000;
+    }
+
+    function validOrder(order) {
+      let fields = order is map ? order : {};
+      let orderNumber = fields.get('orderNumber', null);
+      let orderNumberLength = orderNumber is string ? orderNumber.size() : -1;
+      let itemCount = fields.get('itemCount', null);
+
+      return order is map
+        && order.keys().hasOnly([
+          'orderNumber',
+          'userId',
+          'customerEmail',
+          'customer',
+          'subtotal',
+          'deliveryFee',
+          'total',
+          'paymentMethod',
+          'paymentStatus',
+          'status',
+          'createdAt',
+          'updatedAt',
+          'itemCount'
+        ])
+        && order.size() == 13
+        && orderNumber is string
+        && orderNumberLength >= 3
+        && orderNumberLength <= 64
+        && itemCount is int
+        && itemCount >= 1
+        && itemCount <= 20
+        && validCustomer(fields.get('customer', null))
+        && validOrderTotals(order)
+        && fields.get('paymentMethod', null) == 'cod'
+        && fields.get('paymentStatus', null) == 'pending'
+        && fields.get('status', null) == 'pending'
+        && fields.get('createdAt', null) == request.time
+        && fields.get('updatedAt', null) == request.time;
+    }
+
+    function validCustomer(value) {
+      let fields = value is map ? value : {};
+      let fullName = fields.get('fullName', null);
+      let fullNameLength = fullName is string ? fullName.size() : -1;
+      let phone = fields.get('phone', null);
+      let phoneLength = phone is string ? phone.size() : -1;
+      let address = fields.get('address', null);
+      let addressLength = address is string ? address.size() : -1;
+      let city = fields.get('city', null);
+      let cityLength = city is string ? city.size() : -1;
+
+      return value is map
+        && value.size() == 4
+        && fullName is string
+        && fullNameLength >= 2
+        && fullNameLength <= 100
+        && phone is string
+        && phoneLength >= 7
+        && phoneLength <= 24
+        && address is string
+        && addressLength >= 5
+        && addressLength <= 300
+        && city is string
+        && cityLength >= 2
+        && cityLength <= 100;
+    }
+
+    function validOrderIdentity(order) {
+      let customerEmail = order.get('customerEmail', null);
+      let tokenEmail = request.auth.token.get('email', null);
+
+      return order.get('userId', null) == request.auth.uid
+        && tokenEmail is string
+        && customerEmail == tokenEmail
+        && validEmail(customerEmail);
+    }
+
+    function validOrderTotals(order) {
+      let subtotal = order.get('subtotal', null);
+      let deliveryFee = order.get('deliveryFee', null);
+      let total = order.get('total', null);
+
+      return subtotal is number
+        && subtotal >= 0
+        && subtotal <= 100000000
+        && deliveryFee is number
+        && deliveryFee >= 0
+        && deliveryFee <= 100000
+        && total is number
+        && total >= 0
+        && total <= 100100000;
+    }
+
+    function canCreateOrderItem(orderId) {
+      let parent = orderPath(orderId);
+      let orderAfter = getAfter(parent);
+
+      return signedIn()
+        && !exists(parent)
+        && orderAfter.data.userId == request.auth.uid
+        && orderAfter.data.status == 'pending'
+        && orderAfter.data.paymentStatus == 'pending'
+        && orderAfter.data.createdAt == request.time
+        && orderAfter.data.updatedAt == request.time;
+    }
+
+    function validOrderStatus(status) {
+      return status in ['pending', 'confirmed', 'shipped', 'delivered', 'cancelled'];
+    }
+
+    function validPaymentStatus(status) {
+      return status in ['pending', 'paid', 'cancelled'];
+    }
+
+    function validOrderStatusTransition() {
+      return request.resource.data.status == resource.data.status
+        || (resource.data.status == 'pending'
+          && request.resource.data.status in ['confirmed', 'cancelled'])
+        || (resource.data.status == 'confirmed'
+          && request.resource.data.status in ['shipped', 'cancelled'])
+        || (resource.data.status == 'shipped'
+          && request.resource.data.status in ['delivered', 'cancelled']);
+    }
+
+    function validPaymentStatusTransition() {
+      return request.resource.data.paymentStatus == resource.data.paymentStatus
+        || (resource.data.paymentStatus == 'pending'
+          && request.resource.data.paymentStatus == 'paid'
+          && request.resource.data.status == 'delivered');
+    }
+
+    match /users/{userId} {
+      allow read: if isAdmin() || (signedIn() && request.auth.uid == userId);
+      allow create: if signedIn()
+        && request.auth.uid == userId
+        && request.resource.data.keys().hasOnly(['email', 'displayName', 'createdAt'])
+        && request.resource.data.email == request.auth.token.email
+        && request.resource.data.displayName is string
+        && request.resource.data.displayName.size() <= 100
+        && request.resource.data.createdAt == request.time;
+      allow update: if signedIn()
+        && request.auth.uid == userId
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['displayName'])
+        && request.resource.data.displayName is string
+        && request.resource.data.displayName.size() <= 100;
+      allow delete: if false;
+    }
+
+    match /products/{productId} {
+      allow read: if isAdmin() || resource.data.published == true;
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /categories/{categoryId} {
+      allow read: if isAdmin() || resource.data.active == true;
+      allow write: if false;
+    }
+
+    match /orders/{orderId} {
+      allow read: if isAdmin() || (signedIn() && resource.data.userId == request.auth.uid);
+      allow create: if signedIn()
+        && validOrderIdentity(request.resource.data)
+        && validOrder(request.resource.data);
+      allow update: if isAdmin()
+        && request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['status', 'paymentStatus', 'updatedAt'])
+        && request.resource.data.diff(resource.data).affectedKeys()
+          .hasAny(['status', 'paymentStatus'])
+        && request.resource.data.updatedAt == request.time
+        && validOrderStatus(request.resource.data.status)
+        && validPaymentStatus(request.resource.data.paymentStatus)
+        && validOrderStatusTransition()
+        && validPaymentStatusTransition()
+        && (request.resource.data.status != 'cancelled'
+          || resource.data.paymentStatus != 'paid');
+      allow delete: if false;
+    }
+
+    match /orders/{orderId}/items/{itemId} {
+      allow read: if isAdmin()
+        || (signedIn()
+          && get(orderPath(orderId)).data.userId == request.auth.uid);
+      allow create: if canCreateOrderItem(orderId)
+        && validOrderItem(request.resource.data);
+      allow update, delete: if false;
+    }
+
+    match /wishlists/{userId}/items/{productId} {
+      allow read: if isAdmin() || (signedIn() && request.auth.uid == userId);
+      allow create: if signedIn()
+        && request.auth.uid == userId
+        && request.resource.data.keys().hasOnly(['productId', 'createdAt'])
+        && request.resource.data.productId == productId
+        && request.resource.data.createdAt == request.time;
+      allow update: if false;
+      allow delete: if signedIn() && request.auth.uid == userId;
+    }
+
+    match /reviews/{reviewId} {
+      allow read: if resource.data.status == 'published' || isAdmin();
+      allow create: if signedIn()
+        && request.resource.data.keys().hasOnly(['userId', 'productId', 'rating', 'text', 'createdAt', 'status'])
+        && request.resource.data.userId == request.auth.uid
+        && request.resource.data.productId is string
+        && request.resource.data.rating is int
+        && request.resource.data.rating >= 1
+        && request.resource.data.rating <= 5
+        && request.resource.data.text is string
+        && request.resource.data.text.size() <= 1500
+        && request.resource.data.status == 'pending'
+        && request.resource.data.createdAt == request.time;
+      allow update, delete: if isAdmin();
+    }
+
+    match /inventory/{inventoryId} {
+      allow read, write: if false;
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
