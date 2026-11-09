@@ -41,6 +41,7 @@ import {
   type QueryDocumentSnapshot,
 } from 'firebase/firestore'
 import { auth, db, isFirebaseConfigured } from './lib/firebase'
+import { fallbackImage, handleImageError } from './lib/imageFallback'
 import type { Product } from './types'
 import './AdminApp.css'
 
@@ -907,7 +908,7 @@ function ProductManagement({
         {products.length === 0 ? <p className="admin-empty">No products yet. Add your first product above.</p> : (
           <div className="admin-table-scroll"><table className="admin-table"><thead><tr><th>Product</th><th>Category</th><th>Price</th><th>Stock</th><th>Status</th><th>Actions</th></tr></thead><tbody>
             {products.map((product) => <tr key={product.id}>
-              <td><div className="admin-product-cell"><img src={product.imageUrl} alt="" /><span><strong>{product.name}</strong><small>{product.brand}</small></span></div></td>
+              <td><div className="admin-product-cell"><img src={product.imageUrl || fallbackImage} alt="" onError={handleImageError} /><span><strong>{product.name}</strong><small>{product.brand}</small></span></div></td>
               <td>{product.category}</td><td>{price(product.price)}</td><td><span className={product.stock <= 5 ? 'stock-warning' : ''}>{product.stock}</span></td><td><span className={`status-pill ${product.published ? 'published' : 'unpublished'}`}>{product.published ? 'Published' : 'Draft'}</span></td>
               <td><div className="table-actions"><button type="button" aria-label={`Edit ${product.name}`} onClick={() => edit(product)}><Pencil size={15} /></button><button type="button" aria-label={`Delete ${product.name}`} disabled={busy} onClick={() => remove(product)}><Trash2 size={15} /></button></div></td>
             </tr>)}

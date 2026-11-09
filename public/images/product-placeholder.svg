@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 1000" fill="none">
+  <defs>
+    <linearGradient id="background" x1="0" y1="0" x2="800" y2="1000" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#f8f2ed"/>
+      <stop offset="1" stop-color="#e9ddd3"/>
+    </linearGradient>
+    <linearGradient id="bottle" x1="300" y1="300" x2="500" y2="790" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#fdfbf8"/>
+      <stop offset="1" stop-color="#d9c8b9"/>
+    </linearGradient>
+  </defs>
+  <path fill="url(#background)" d="M0 0h800v1000H0z"/>
+  <circle cx="650" cy="210" r="155" fill="#fff" fill-opacity=".26"/>
+  <circle cx="130" cy="810" r="220" fill="#cfa9a0" fill-opacity=".18"/>
+  <path d="M345 253h110v78H345z" fill="#a58a77"/>
+  <path d="M322 317h156c22 0 40 18 40 40v365c0 31-25 56-56 56H338c-31 0-56-25-56-56V357c0-22 18-40 40-40Z" fill="url(#bottle)" stroke="#bca99a" stroke-width="8"/>
+  <path d="M309 498h182v149H309z" fill="#f7f1eb" stroke="#d7c8bb" stroke-width="4"/>
+  <path d="M353 544h94M367 572h66M380 600h40" stroke="#9c7870" stroke-linecap="round" stroke-width="7"/>
+  <path d="M380 214h40v40h-40z" fill="#d9cabe"/>
+  <path d="M400 421c-22-29-66 1 0 54 66-53 22-83 0-54Z" fill="#b77e78" fill-opacity=".8"/>
+</svg>

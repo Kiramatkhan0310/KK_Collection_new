@@ -47,6 +47,7 @@ import {
 } from 'firebase/firestore'
 import { auth, db, isFirebaseConfigured } from './lib/firebase'
 import { demoProducts, editorialImages } from './lib/demoProducts'
+import { fallbackImage, handleImageError } from './lib/imageFallback'
 import type { Product } from './types'
 import './App.css'
 
@@ -91,9 +92,6 @@ const CART_STORAGE_ERROR_EVENT = 'kk-collection-cart-storage-error'
 const currentYear = new Date().getFullYear()
 const MAX_ORDER_ITEMS = 20
 const MAX_ITEM_QUANTITY = 20
-const fallbackImage =
-  'https://images.unsplash.com/photo-1608248543803-ba4f8c70ae0b?auto=format&fit=crop&w=900&q=85'
-
 function readCart(): Cart {
   try {
     const saved = localStorage.getItem(CART_STORAGE_KEY)
@@ -969,7 +967,7 @@ function App() {
         </nav>
 
         <section className="hero" aria-labelledby="hero-title">
-          <img className="hero-editorial-image" src={editorialImages.hero} alt="" />
+          <img className="hero-editorial-image" src={editorialImages.hero} alt="" onError={handleImageError} />
           <div className="hero-shade" />
           <div className="hero-copy">
             <p className="hero-kicker">THE AUTUMN / WINTER EDIT <span>·</span> KARACHI &amp; LAHORE FLAGSHIP</p>
@@ -1003,7 +1001,7 @@ function App() {
                 { category: 'Makeup', name: 'Silk Radiance Complexion & Velour Lips', eyebrow: 'STUDIO ARTISTRY', description: 'Weightless pigments and comfortable textures, made for everyday artistry.', image: editorialImages.makeup },
               ].map((item) => (
                 <button className="reference-collection-card" type="button" key={item.category} onClick={() => { setSelectedCategory(item.category); document.getElementById('shop')?.scrollIntoView({ behavior: 'smooth' }) }}>
-                  <img src={item.image} alt="" loading="lazy" />
+                  <img src={item.image} alt="" loading="lazy" onError={handleImageError} />
                   <span className="reference-collection-copy">
                     <small>{item.eyebrow}</small><strong>{item.name}</strong><span>{item.description}</span><b>Explore {item.category.toLowerCase()} <ArrowRight size={14} /></b>
                   </span>
@@ -1103,6 +1101,7 @@ function App() {
                         src={product.imageUrl || fallbackImage}
                         alt={product.imageAlt || product.name}
                         loading={index > 3 ? 'lazy' : 'eager'}
+                        onError={handleImageError}
                       />
                       {product.badge && <span className="product-badge">{product.badge}</span>}
                       <button
@@ -1219,7 +1218,7 @@ function App() {
                 <div className="cart-items">
                   {cartEntries.map((product) => (
                     <div className="cart-item" key={product.id}>
-                      <img src={product.imageUrl || fallbackImage} alt="" />
+                      <img src={product.imageUrl || fallbackImage} alt="" onError={handleImageError} />
                       <div className="cart-item-details"><p className="product-category">{product.category}</p><strong>{product.name}</strong><span>{formatPrice(product.price)}</span>
                         <div className="quantity-control">
                           <button type="button" aria-label={`Decrease ${product.name} quantity`} onClick={() => updateQuantity(product, cart[product.id] - 1)}><Minus size={13} /></button>
@@ -1432,7 +1431,7 @@ function App() {
         <div className="overlay" onMouseDown={(event) => { if (event.target === event.currentTarget) setSelectedProduct(null) }}>
           <section className="dialog-card product-dialog" aria-label={`${selectedProduct.name} details`} aria-modal="true" role="dialog">
             <button className="icon-button dialog-close" type="button" aria-label="Close product details" onClick={() => setSelectedProduct(null)}><X /></button>
-            <img className="product-dialog-image" src={selectedProduct.imageUrl || fallbackImage} alt={selectedProduct.imageAlt || selectedProduct.name} />
+            <img className="product-dialog-image" src={selectedProduct.imageUrl || fallbackImage} alt={selectedProduct.imageAlt || selectedProduct.name} onError={handleImageError} />
             <div className="product-dialog-copy">
               <p className="eyebrow">{selectedProduct.category}</p>
               <h2>{selectedProduct.name}</h2>

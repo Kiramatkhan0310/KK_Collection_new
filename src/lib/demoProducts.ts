@@ -1,10 +1,10 @@
 import type { Product } from '../types'
 
 export const editorialImages = {
-  hero: 'https://kiramatkhan0310.github.io/KK_Collection/images/hero_cosmetics_luxury_1792869210810.jpg',
-  skincare: 'https://kiramatkhan0310.github.io/KK_Collection/images/spotlight_skincare_elixir_1792869212007.jpg',
-  fragrance: 'https://kiramatkhan0310.github.io/KK_Collection/images/craftsmanship_perfume_amber_1792869212475.jpg',
-  makeup: 'https://kiramatkhan0310.github.io/KK_Collection/images/editorial_makeup_collection_1792869212052.jpg',
+  hero: '/images/hero-editorial.jpg',
+  skincare: '/images/formulation-skincare.jpg',
+  fragrance: '/images/formulation-fragrance.jpg',
+  makeup: '/images/formulation-makeup.jpg',
 }
 
 const image = (id: string) =>
